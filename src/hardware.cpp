@@ -52,7 +52,7 @@ void MiniGen::SPIWrite(uint16_t data)
   SPI.transfer((byte) data);
   
   // EndTransaction to release bus for other chips to use.
-  SPI.EndTransaction();
   digitalWrite( _FSYNCPin, HIGH);
+  SPI.endTransaction();
 }
 

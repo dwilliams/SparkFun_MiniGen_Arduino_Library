@@ -19,7 +19,7 @@ Code developed in Arduino 1.0.5, on an Arduino Pro Mini 5V.
 MiniGen::MiniGen()
 {
   _FSYNCPin = 10;
-  configSPIPeripheral();
+  //configSPIPeripheral();
 }
 
 // Overloaded constructor, for cases where the chip select pin is not
@@ -27,7 +27,7 @@ MiniGen::MiniGen()
 MiniGen::MiniGen(int16_t FSYNCPin)
 {
   _FSYNCPin = FSYNCPin;
-  configSPIPeripheral();
+  //configSPIPeripheral();
 }
 
 // reset the AD part. This will disable all function generation and set the
