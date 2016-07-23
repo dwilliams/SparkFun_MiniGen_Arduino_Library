@@ -13,6 +13,7 @@ Code developed in Arduino 1.0.5, on an Arduino Pro Mini 5V.
 
 ****************************************************************/
 #include "SparkFun_MiniGen.h"
+#include <SPI.h>
 
 // Default constructor. Assumes that you've plopped the MiniGen onto a Pro
 //  Mini Arduino and want to use the default chip select pin.
@@ -20,6 +21,8 @@ MiniGen::MiniGen()
 {
   _FSYNCPin = 10;
   //configSPIPeripheral();
+  SPI.begin();
+  pinMode(_FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
 }
 
 // Overloaded constructor, for cases where the chip select pin is not
@@ -28,6 +31,8 @@ MiniGen::MiniGen(int16_t FSYNCPin)
 {
   _FSYNCPin = FSYNCPin;
   //configSPIPeripheral();
+  SPI.begin();
+  pinMode(_FSYNCPin, OUTPUT);
 }
 
 // reset the AD part. This will disable all function generation and set the
@@ -133,12 +138,13 @@ void MiniGen::setFreqAdjustMode(FREQADJUSTMODE newMode)
   {
     case COARSE:  // D13:12 = 01
       configReg |= 0x1000;
-    break;
+      break;
     case FINE:    // D13:12 = 00
-    break;
+      break;
     case FULL:    // D13:12 = 1x (we use 10)
+    default:
       configReg |= 0x2000;
-    break;
+      break;
   }
   
   // Make sure to clear the top two bit to make sure we're writing the config register:
@@ -238,4 +244,27 @@ void MiniGen::adjustFreq(FREQREG reg, uint16_t newFreq)
 uint32_t MiniGen::freqCalc(float desiredFrequency)
 {
   return (uint32_t) (desiredFrequency/.0596);
+}
+
+// SPIWrite is optimized for this part. All writes are 16-bits; some registers
+//  require multiple writes to update all bits in the registers. The address of
+//  the register to be written is embedded in the data; corresponding write
+//  functions will properly prepare the data with that information.
+void MiniGen::SPIWrite(uint16_t data)
+{
+  // Converting this to use the new SPI interface bits on a transactional basis.  The transactional basis will allow
+  //   the SPI bus to be used with different devices and libraries.
+  
+  // BeginTransaction on the SPI bus.  AD9837 is rated to 40MHz bus clock, but limiting to 10MHz as that should be fast
+  //   enough.  AD9837 also uses SPI Mode 2 (CPOL = 1, CPHA = 0).
+  SPI.beginTransaction( SPISettings( 1000000, MSBFIRST, SPI_MODE2));
+  digitalWrite( _FSYNCPin, LOW);
+  
+  // Write the data.
+  SPI.transfer((byte) (data>>8));
+  SPI.transfer((byte) data);
+  
+  // EndTransaction to release bus for other chips to use.
+  digitalWrite( _FSYNCPin, HIGH);
+  SPI.endTransaction();
 }

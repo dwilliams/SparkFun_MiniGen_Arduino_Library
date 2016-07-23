@@ -37,22 +37,22 @@ Code developed in Arduino 1.0.5, on an Arduino Pro Mini 5V.
 //  require multiple writes to update all bits in the registers. The address of
 //  the register to be written is embedded in the data; corresponding write
 //  functions will properly prepare the data with that information.
-void MiniGen::SPIWrite(uint16_t data)
-{
-  // Converting this to use the new SPI interface bits on a transactional basis.  The transactional basis will allow
-  //   the SPI bus to be used with different devices and libraries.
-  
-  // BeginTransaction on the SPI bus.  AD9837 is rated to 40MHz bus clock, but limiting to 10MHz as that should be fast
-  //   enough.  AD9837 also uses SPI Mode 2 (CPOL = 1, CPHA = 0).
-  SPI.beginTransaction( SPISettings( 10000000, MSBFIRST, SPI_MODE2));
-  digitalWrite( _FSYNCPin, LOW);
-  
-  // Write the data.
-  SPI.transfer((byte) (data>>8));
-  SPI.transfer((byte) data);
-  
-  // EndTransaction to release bus for other chips to use.
-  digitalWrite( _FSYNCPin, HIGH);
-  SPI.endTransaction();
-}
+// void MiniGen::SPIWrite(uint16_t data)
+// {
+  // // Converting this to use the new SPI interface bits on a transactional basis.  The transactional basis will allow
+  // //   the SPI bus to be used with different devices and libraries.
+  // 
+  // // BeginTransaction on the SPI bus.  AD9837 is rated to 40MHz bus clock, but limiting to 10MHz as that should be fast
+  // //   enough.  AD9837 also uses SPI Mode 2 (CPOL = 1, CPHA = 0).
+  // SPI.beginTransaction( SPISettings( 1000000, MSBFIRST, SPI_MODE2));
+  // digitalWrite( _FSYNCPin, LOW);
+  // 
+  // // Write the data.
+  // SPI.transfer((byte) (data>>8));
+  // SPI.transfer((byte) data);
+  // 
+  // // EndTransaction to release bus for other chips to use.
+  // digitalWrite( _FSYNCPin, HIGH);
+  // SPI.endTransaction();
+// }
 
