@@ -29,20 +29,18 @@ MiniGen::MiniGen()
 
 // Overloaded constructor, for cases where the chip select pin is not
 //  connected to the regular pin. Still assumes standard SPI connections.
-MiniGen::MiniGen( int16_t FSYNCPin) // FIXME: Default Argument
+MiniGen::MiniGen( int16_t FSYNCPin)
 {
   _FSYNCPin = FSYNCPin;
   SPI.begin(); // Make sure the SPI subsystem is initialized.  Doesn't hurt to do this multiple times.
-  pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
   digitalWrite( _FSYNCPin, HIGH);  // Disable the chip select initially.
+  pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
 }
 
 // ### Public Functions ###
 
-// reset the AD part. This will disable all function generation and set the
-//  output to approximately mid-level, constant voltage. Since we're resetting,
-//  we can also forego worrying about maintaining the state of the other bits
-//  in the config register.
+// Reset all of the registers so the chip produces a 100 Hz tone with no phase shift.  Also perform a reset on the chip
+//   to make sure the chip is initiallized correctly internally.
 void MiniGen::reset()
 {
   uint32_t defaultFreq = freqCalc( 100.0);
