@@ -24,6 +24,7 @@ MiniGen::MiniGen()
   _FSYNCPin = 10;
   SPI.begin(); // Make sure the SPI subsystem is initialized.  Doesn't hurt to do this multiple times.
   pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
+  digitalWrite( _FSYNCPin, HIGH);  // Disable the chip select initially.
 }
 
 // Overloaded constructor, for cases where the chip select pin is not
@@ -33,6 +34,7 @@ MiniGen::MiniGen( int16_t FSYNCPin) // FIXME: Default Argument
   _FSYNCPin = FSYNCPin;
   SPI.begin(); // Make sure the SPI subsystem is initialized.  Doesn't hurt to do this multiple times.
   pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
+  digitalWrite( _FSYNCPin, HIGH);  // Disable the chip select initially.
 }
 
 // ### Public Functions ###
@@ -164,13 +166,13 @@ void MiniGen::setFreqAdjustMode( FREQADJUSTMODE newMode)
 //  register based on the value of the 3 MSBs (4th MSB is ignored).
 void MiniGen::adjustPhaseShift( PHASEREG reg, uint16_t newPhase)
 {
-  startWrite();
+  writeStart();
   if( reg == PHASE0) {
       writePhase0( newPhase);
   } else {
       writePhase1( newPhase);
   }
-  endWrite();
+  writeEnd();
 }
 
 // Okay, now we're going to handle frequency adjustments. This is a little
