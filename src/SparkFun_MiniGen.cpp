@@ -15,25 +15,27 @@ Code developed in Arduino 1.0.5, on an Arduino Pro Mini 5V.
 #include "SparkFun_MiniGen.h"
 #include <SPI.h>
 
+// ### Constructors ###
+
 // Default constructor. Assumes that you've plopped the MiniGen onto a Pro
 //  Mini Arduino and want to use the default chip select pin.
 MiniGen::MiniGen()
 {
   _FSYNCPin = 10;
-  //configSPIPeripheral();
-  SPI.begin();
-  pinMode(_FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
+  SPI.begin(); // Make sure the SPI subsystem is initialized.  Doesn't hurt to do this multiple times.
+  pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
 }
 
 // Overloaded constructor, for cases where the chip select pin is not
 //  connected to the regular pin. Still assumes standard SPI connections.
-MiniGen::MiniGen(int16_t FSYNCPin)
+MiniGen::MiniGen( int16_t FSYNCPin) // FIXME: Default Argument
 {
   _FSYNCPin = FSYNCPin;
-  //configSPIPeripheral();
-  SPI.begin();
-  pinMode(_FSYNCPin, OUTPUT);
+  SPI.begin(); // Make sure the SPI subsystem is initialized.  Doesn't hurt to do this multiple times.
+  pinMode( _FSYNCPin, OUTPUT);  // Make the FSYCPin (chip select) pin an output.
 }
+
+// ### Public Functions ###
 
 // reset the AD part. This will disable all function generation and set the
 //  output to approximately mid-level, constant voltage. Since we're resetting,
@@ -41,13 +43,17 @@ MiniGen::MiniGen(int16_t FSYNCPin)
 //  in the config register.
 void MiniGen::reset()
 {
-  uint32_t defaultFreq = freqCalc(100.0);
-  adjustFreq(FREQ0, FULL, defaultFreq);
-  adjustFreq(FREQ1, FULL, defaultFreq);
-  adjustPhaseShift(PHASE0, 0x0000);
-  adjustPhaseShift(PHASE1, 0x0000);
-  SPIWrite(0x0100);
-  SPIWrite(0x0000);
+  uint32_t defaultFreq = freqCalc( 100.0);
+  
+  adjustFreq( FREQ0, FULL, defaultFreq);
+  adjustFreq( FREQ1, FULL, defaultFreq);
+  adjustPhaseShift( PHASE0, 0x0000);
+  adjustPhaseShift( PHASE1, 0x0000);
+  
+  writeStart();
+  writeData( 0x0100);
+  writeData( 0x0000);
+  writeEnd();
 }
 
 // Set the mode of the part. The mode (trinagle, sine, or square) is set by
@@ -59,7 +65,7 @@ void MiniGen::reset()
 //  1  0  0   Square wave @ 1/2 frequency
 //  1  0  1   Square wave @ frequency
 //  1  1  x   Not allowed
-void MiniGen::setMode(MODE newMode)
+void MiniGen::setMode( MODE newMode)
 {
   // We want to adjust the three bits in the config register that we're
   //  interested in without screwing up anything else. Unfortunately, this
@@ -83,40 +89,42 @@ void MiniGen::setMode(MODE newMode)
     break;
   }
   
-  // Make sure to clear the top two bit to make sure we're writing the config register:
-  configReg &= ~0xC000;
-  
-  SPIWrite(configReg); // Now write our shadow copy to the part.
+  writeStart();
+  writeConfig( configReg);
+  writeEnd();
 }
 
 // The AD9837 has two frequency registers that can be independently adjusted.
 //  This allows us to fiddle with the value in one without affecting the output
 //  of the device. The register used for calculating the output is selected by
 //  toggling bit 11 of the config register.
-void MiniGen::selectFreqReg(FREQREG reg)
+void MiniGen::selectFreqReg( FREQREG reg)
 {
-  // For register FREQ0, we want to clear bit 11.
-  if (reg == FREQ0) configReg &= ~0x0800;
-  // Otherwise, set bit 11.
-  else              configReg |= 0x0800;
+  // For register FREQ0, we want to clear bit 11. Otherwise, set bit 11.
+  if( reg == FREQ0) {
+    configReg &= ~0x0800;
+  } else {
+    configReg |= 0x0800;
+  }
   
-  // Make sure to clear the top two bit to make sure we're writing the config register:
-  configReg &= ~0xC000;
-  
-  SPIWrite(configReg);
+  writeStart();
+  writeConfig( configReg);
+  writeEnd();
 }
 
 // Similarly, there are two phase registers, selected by bit 10 of the config
 //  register.
-void MiniGen::selectPhaseReg(PHASEREG reg)
+void MiniGen::selectPhaseReg( PHASEREG reg)
 {
-  if (reg == PHASE0) configReg &= ~0x0400;
-  else               configReg |= 0x0400;
+  if( reg == PHASE0) {
+    configReg &= ~0x0400;
+  } else {
+    configReg |= 0x0400;
+  }
   
-  // Make sure to clear the top two bit to make sure we're writing the config register:
-  configReg &= ~0xC000;
-  
-  SPIWrite(configReg);
+  writeStart();
+  writeConfig( configReg);
+  writeEnd();
 }
 
 // The frequency registers are 28 bits in size (combining the lower 14 bits of
@@ -129,7 +137,7 @@ void MiniGen::selectPhaseReg(PHASEREG reg)
 //  1  x   First write of a pair goes to LSBs, second to MSBs. Note that the
 //          user must, in this case, be certain to write in pairs, to avoid
 //          unexpected results!
-void MiniGen::setFreqAdjustMode(FREQADJUSTMODE newMode)
+void MiniGen::setFreqAdjustMode( FREQADJUSTMODE newMode)
 {
   // Start by clearing the bits in question.
   configReg &= ~0x3000;
@@ -147,25 +155,22 @@ void MiniGen::setFreqAdjustMode(FREQADJUSTMODE newMode)
       break;
   }
   
-  // Make sure to clear the top two bit to make sure we're writing the config register:
-  configReg &= ~0xC000;
-  
-  SPIWrite(configReg);
+  writeStart();
+  writeConfig( configReg);
+  writeEnd();
 }
 
 // The phase shift value is 12 bits long; it gets routed to the proper phase
 //  register based on the value of the 3 MSBs (4th MSB is ignored).
-void MiniGen::adjustPhaseShift(PHASEREG reg, uint16_t newPhase)
+void MiniGen::adjustPhaseShift( PHASEREG reg, uint16_t newPhase)
 {
-  // First, let's blank the top four bits. Just because it's the right thing
-  //  to do, you know?
-  newPhase &= ~0xF000;
-  // Now, we need to set the top three bits to properly route the data.
-  //  D15:D13 = 110 for PHASE0...
-  if (reg == PHASE0) newPhase |= 0xC000;
-  // ... and D15:D13 = 111 for PHASE1.
-  else               newPhase |= 0xE000;
-  SPIWrite(newPhase);
+  startWrite();
+  if( reg == PHASE0) {
+      writePhase0( newPhase);
+  } else {
+      writePhase1( newPhase);
+  }
+  endWrite();
 }
 
 // Okay, now we're going to handle frequency adjustments. This is a little
@@ -176,48 +181,35 @@ void MiniGen::adjustPhaseShift(PHASEREG reg, uint16_t newPhase)
 
 // Adjust the contents of the given register, and, if necessary, switch mode
 //  to do so. This is probably the slowest method of updating a register.
-void MiniGen::adjustFreq(FREQREG reg, FREQADJUSTMODE mode, uint32_t newFreq)
-{
-  setFreqAdjustMode(mode);
+void MiniGen::adjustFreq( FREQREG reg, FREQADJUSTMODE mode, uint32_t newFreq) {
+  setFreqAdjustMode( mode);
   // Now, we can just call the normal 32-bit write.
-  adjustFreq(reg, newFreq);
+  adjustFreq( reg, newFreq);
 }
 
 // Fine or coarse update of the given register; change modes if necessary to
 //  do this.
-void MiniGen::adjustFreq(FREQREG reg, FREQADJUSTMODE mode, uint16_t newFreq)
-{
-  setFreqAdjustMode(mode);  // Set the mode
-  adjustFreq(reg, newFreq); // Call the known-mode write.
+void MiniGen::adjustFreq( FREQREG reg, FREQADJUSTMODE mode, uint16_t newFreq) {
+  setFreqAdjustMode( mode);  // Set the mode
+  adjustFreq( reg, newFreq); // Call the known-mode write.
 }
 
 // Adjust the contents of the register, but assume that the write mode is
 //  already set to full. Note that if it is NOT set to full, bad things will
 //  happen- the coarse or fine register will be updated with the contents of
 //  the upper 14 bits of the 28 bits you *meant* to send.
-void MiniGen::adjustFreq(FREQREG reg, uint32_t newFreq)
-{  
-  // We need to split the 32-bit input into two 16-bit values, blank the top
-  //  two bits of those values, and set the top two bits according to the
-  //  value of reg.
-  // Start by acquiring the low 16-bits...
-  uint16_t temp = (uint16_t)newFreq;
-  // ...and blanking the first two bits.
-  temp &= ~0xC000;
-  // Now, set the top two bits according to the reg parameter.
-  if (reg==FREQ0) temp |= 0x4000;
-  else            temp |= 0x8000;
-  // Now, we can write temp out to the device.
-  SPIWrite(temp);
-  // Okay, that's the lower 14 bits. Now let's grab the upper 14.
-  temp = (uint16_t)(newFreq>>14);
-  // ...and now, we can just repeat the process.
-  temp &= ~0xC000;
-  // Now, set the top two bits according to the reg parameter.
-  if (reg==FREQ0) temp |= 0x4000;
-  else            temp |= 0x8000;
-  // Now, we can write temp out to the device.
-  SPIWrite(temp);
+void MiniGen::adjustFreq( FREQREG reg, uint32_t newFreq) {
+  // We need to split the 32-bit input into two 16-bit values, then write those values into the correct frequency
+  //   register.
+  writeStart();
+  if( reg == FREQ0) {
+      writeFreq0( (uint16_t) newFreq);
+      writeFreq0( (uint16_t) (newFreq>>14));
+  } else {
+      writeFreq1( (uint16_t) newFreq);
+      writeFreq1( (uint16_t) (newFreq>>14));
+  }
+  writeEnd();
 }
 
 // Adjust the coarse or fine register, depending on the current mode. Note that
@@ -225,15 +217,15 @@ void MiniGen::adjustFreq(FREQREG reg, uint32_t newFreq)
 //  behavior, as it will leave one transfer hanging. Maybe that means only
 //  half the register gets loaded? Maybe nothing happens until another write
 //  to that register? Either way, it's not going to be good.
-void MiniGen::adjustFreq(FREQREG reg, uint16_t newFreq)
+void MiniGen::adjustFreq( FREQREG reg, uint16_t newFreq)
 {
-  // We need to blank the first two bits...
-  newFreq &= ~0xC000;
-  // Now, set the top two bits according to the reg parameter.
-  if (reg==FREQ0) newFreq |= 0x4000;
-  else            newFreq |= 0x8000;
-  // Now, we can write newFreq out to the device.
-  SPIWrite(newFreq);
+  writeStart();
+  if( reg == FREQ0) {
+      writeFreq0( newFreq);
+  } else {
+      writeFreq1( newFreq);
+  }
+  writeEnd();
 }
 
 // Helper function, used to calculate the integer value to be written to a
@@ -241,30 +233,80 @@ void MiniGen::adjustFreq(FREQREG reg, uint16_t newFreq)
 // The output frequency is fclk/2^28 * FREQREG. For us, fclk is 16MHz. We can
 //  save processor time by specifying a constant for fclk/2^28- .0596. That is,
 //  in Hz, the smallest step size for adjusting the output frequency.
-uint32_t MiniGen::freqCalc(float desiredFrequency)
+uint32_t MiniGen::freqCalc( float desiredFrequency)
 {
-  return (uint32_t) (desiredFrequency/.0596);
+  return (uint32_t) ( desiredFrequency / 0.0596);
 }
 
-// SPIWrite is optimized for this part. All writes are 16-bits; some registers
-//  require multiple writes to update all bits in the registers. The address of
-//  the register to be written is embedded in the data; corresponding write
-//  functions will properly prepare the data with that information.
-void MiniGen::SPIWrite(uint16_t data)
-{
-  // Converting this to use the new SPI interface bits on a transactional basis.  The transactional basis will allow
-  //   the SPI bus to be used with different devices and libraries.
-  
+// ### Private Functions ###
+
+// writeStart() should be called at the beginning of each set of writes to prepare the SPI bus for writing.
+void MiniGen::writeStart() {
   // BeginTransaction on the SPI bus.  AD9837 is rated to 40MHz bus clock, but limiting to 10MHz as that should be fast
   //   enough.  AD9837 also uses SPI Mode 2 (CPOL = 1, CPHA = 0).
-  SPI.beginTransaction( SPISettings( 1000000, MSBFIRST, SPI_MODE2));
+  SPI.beginTransaction( SPISettings( 10000000, MSBFIRST, SPI_MODE2));
+}
+
+// writeData( data) should be called to write the data to the bus.  This will handle the chip select and writing of the
+//   data.
+void MiniGen::writeData( uint16_t data) {
+  // Set the chip select pin to low to enable writing to the chip.
   digitalWrite( _FSYNCPin, LOW);
   
   // Write the data.
-  SPI.transfer((byte) (data>>8));
-  SPI.transfer((byte) data);
+  SPI.transfer( (byte) (data>>8));
+  SPI.transfer( (byte) data);
   
-  // EndTransaction to release bus for other chips to use.
+  // Set the chip select pin to high to disable writing to the chip.
   digitalWrite( _FSYNCPin, HIGH);
+}
+
+// writeEnd() should be called at the end of each set of writes to release the SPI bus for other uses.
+void MiniGen::writeEnd() {
+  // EndTransaction to release bus for other chips to use.
   SPI.endTransaction();
+}
+
+// writeConfig() sets the correct bits to write the config register.
+void MiniGen::writeConfig( uint16_t data) {
+  // Make sure to clear the top two bit to make sure we're writing the config register:
+  data &= ~0xC000;
+  
+  writeData( data);
+}
+
+// writeConfig() sets the correct bits to write the config register.
+void MiniGen::writeFreq0( uint16_t data) {
+  // Make sure to clear the top two bit to make sure we're writing the config register:
+  data &= ~0xC000;
+  data |= 0x4000; // Set top two bits to 0b01.
+  
+  writeData( data);
+}
+
+// writeConfig() sets the correct bits to write the config register.
+void MiniGen::writeFreq1( uint16_t data) {
+  // Make sure to clear the top two bit to make sure we're writing the config register:
+  data &= ~0xC000;
+  data |= 0x8000; // Set top two bits to 0b10.
+  
+  writeData( data);
+}
+
+// writeConfig() sets the correct bits to write the config register.
+void MiniGen::writePhase0( uint16_t data) {
+  // Make sure to clear the top two bit to make sure we're writing the config register:
+  data &= ~0xF000;
+  data |= 0xC000; // Set top three bits to 0b110.
+  
+  writeData( data);
+}
+
+// writeConfig() sets the correct bits to write the config register.
+void MiniGen::writePhase1( uint16_t data) {
+  // Make sure to clear the top two bit to make sure we're writing the config register:
+  data &= ~0xF000;
+  data |= 0xE000; // Set top three bits to 0b111.
+  
+  writeData( data);
 }

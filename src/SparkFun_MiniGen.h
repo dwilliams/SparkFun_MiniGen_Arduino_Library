@@ -24,7 +24,16 @@ class MiniGen
   
   uint16_t _FSYNCPin;
   
-  void configSPIPeripheral();
+  //void configSPIPeripheral();
+  void writeStart();
+  void writeData( uint16_t data);
+  void writeEnd();
+  
+  void writeConfig( uint16_t data);
+  void writeFreq0( uint16_t data);
+  void writeFreq1( uint16_t data);
+  void writePhase0( uint16_t data);
+  void writePhase1( uint16_t data);
   
   public:
   enum MODE {TRIANGLE, SINE, SQUARE, SQUARE_2};
@@ -46,9 +55,6 @@ class MiniGen
   void adjustFreq(FREQREG reg, uint32_t newFreq);
   void adjustFreq(FREQREG reg, uint16_t newFreq);
   uint32_t freqCalc(float desiredFrequency);
-  
-  // Move back to private at some point.
-  void SPIWrite(uint16_t data);
 };
 
 #endif
